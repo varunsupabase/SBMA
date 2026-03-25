@@ -2,7 +2,7 @@ import { NavLink } from 'react-router-dom'
 import {
   LayoutDashboard, Users, CalendarCheck, Wallet,
   Banknote, X, Moon, Sun, Building2, ClipboardList,
-  BarChart3, BookUser, PiggyBank
+  BarChart3, BookUser, PiggyBank, LogOut
 } from 'lucide-react'
 
 const GROUPS = [
@@ -37,7 +37,7 @@ const GROUPS = [
   },
 ]
 
-export default function Sidebar({ open, onClose, darkMode, onToggleDark }) {
+export default function Sidebar({ open, onClose, darkMode, onToggleDark, onLogout }) {
   return (
     <>
       {open && (
@@ -98,7 +98,7 @@ export default function Sidebar({ open, onClose, darkMode, onToggleDark }) {
         </nav>
 
         {/* Footer */}
-        <div className="p-3" style={{ borderTop:'1px solid var(--border)' }}>
+        <div className="p-3 space-y-1" style={{ borderTop:'1px solid var(--border)' }}>
           <button onClick={onToggleDark}
             className="flex items-center gap-3 w-full px-3 py-2.5 rounded-lg text-sm font-medium transition-all hover:bg-white/5"
             style={{ color:'var(--text-muted)' }}>
@@ -106,6 +106,14 @@ export default function Sidebar({ open, onClose, darkMode, onToggleDark }) {
               ? <><Sun size={17} strokeWidth={1.8} /><span>Light Mode</span></>
               : <><Moon size={17} strokeWidth={1.8} /><span>Dark Mode</span></>}
           </button>
+          {onLogout && (
+            <button onClick={onLogout}
+              className="flex items-center gap-3 w-full px-3 py-2.5 rounded-lg text-sm font-medium transition-all hover:bg-white/5"
+              style={{ color:'#f87171' }}>
+              <LogOut size={17} strokeWidth={1.8} />
+              <span>Sign Out</span>
+            </button>
+          )}
         </div>
       </aside>
     </>

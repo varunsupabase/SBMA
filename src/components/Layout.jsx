@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { Menu } from 'lucide-react'
 import Sidebar from './Sidebar'
 
-export default function Layout({ children, darkMode, onToggleDark }) {
+export default function Layout({ children, darkMode, onToggleDark, onLogout }) {
   const [sidebarOpen, setSidebarOpen] = useState(false)
 
   return (
@@ -12,34 +12,17 @@ export default function Layout({ children, darkMode, onToggleDark }) {
         onClose={() => setSidebarOpen(false)}
         darkMode={darkMode}
         onToggleDark={onToggleDark}
+        onLogout={onLogout}
       />
-
-      {/* Main area */}
       <div className="flex-1 flex flex-col overflow-hidden">
-        {/* Mobile topbar */}
-        <header
-          className="lg:hidden flex items-center gap-3 px-4 py-3 shrink-0"
-          style={{
-            background: 'var(--surface)',
-            borderBottom: '1px solid var(--border)',
-          }}
-        >
-          <button
-            onClick={() => setSidebarOpen(true)}
-            className="p-2 rounded-lg"
-            style={{
-              background: 'var(--surface2)',
-              color: 'var(--text)',
-            }}
-          >
+        <header className="lg:hidden flex items-center gap-3 px-4 py-3 shrink-0"
+          style={{ background: 'var(--surface)', borderBottom: '1px solid var(--border)' }}>
+          <button onClick={() => setSidebarOpen(true)} className="p-2 rounded-lg"
+            style={{ background: 'var(--surface2)', color: 'var(--text)' }}>
             <Menu size={18} />
           </button>
-          <span className="font-bold text-sm" style={{ color: 'var(--text)' }}>
-            EMP Manager
-          </span>
+          <span className="font-bold text-sm" style={{ color: 'var(--text)' }}>EMP Manager</span>
         </header>
-
-        {/* Page content */}
         <main className="flex-1 overflow-y-auto p-4 lg:p-6 animate-fade-in">
           {children}
         </main>

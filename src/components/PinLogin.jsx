@@ -1,17 +1,16 @@
 import { useState, useEffect } from 'react'
 import { verifyPin, getPinLength } from '../lib/auth'
-import { Lock, Delete } from 'lucide-react'
+import { Lock, Delete, ChevronLeft } from 'lucide-react'
 
 const KEYS = [1,2,3,4,5,6,7,8,9,'',0,'⌫']
 
-export default function PinLogin({ onSuccess }) {
-  const [pinLen]   = useState(() => getPinLength())   // stable, read once
+export default function PinLogin({ onSuccess, onBack }) {
+  const [pinLen]          = useState(() => getPinLength())
   const [digits, setDigits] = useState([])
   const [shake, setShake]   = useState(false)
   const [error, setError]   = useState('')
   const [busy, setBusy]     = useState(false)
 
-  // Auto-verify when enough digits collected
   useEffect(() => {
     if (digits.length !== pinLen || busy) return
     setBusy(true)
@@ -39,18 +38,29 @@ export default function PinLogin({ onSuccess }) {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4" style={{ background: 'var(--bg)' }}>
+    <div className="min-h-screen flex items-center justify-center p-4"
+      style={{ background: 'var(--bg)' }}>
       <div className="w-full max-w-xs animate-slide-up">
-        <div className="text-center mb-8">
+        {/* Back button + header */}
+        <div className="text-center mb-8 relative">
+          {onBack && (
+            <button onClick={onBack}
+              className="absolute left-0 top-0 p-2 rounded-xl hover:bg-white/5 transition-colors"
+              style={{ color: 'var(--text-muted)' }}>
+              <ChevronLeft size={18} />
+            </button>
+          )}
           <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl mb-4"
             style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
             <Lock size={22} className="text-amber-500" />
           </div>
           <h1 className="text-xl font-bold" style={{ color: 'var(--text)' }}>Admin Access</h1>
-          <p className="text-sm mt-1" style={{ color: 'var(--text-muted)' }}>Enter your {pinLen}-digit PIN</p>
+          <p className="text-sm mt-1" style={{ color: 'var(--text-muted)' }}>
+            Enter your {pinLen}-digit PIN
+          </p>
         </div>
 
-        {/* Dots — exact pinLen dots */}
+        {/* Dots */}
         <div className={`flex justify-center gap-3 mb-8 ${shake ? 'animate-shake' : ''}`}>
           {Array.from({ length: pinLen }).map((_, i) => (
             <div key={i} className="w-3 h-3 rounded-full transition-all duration-150"

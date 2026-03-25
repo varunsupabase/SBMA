@@ -181,9 +181,11 @@ export async function deleteBudgetEntry(id) {
   const { error } = await supabase.from('budget_entries').delete().eq('id', id)
   if (error) throw error
 }
-export async function getExpenses() {
-  const { data, error } = await supabase.from('expenses')
+export async function getExpenses(employeeId = null) {
+  let q = supabase.from('expenses')
     .select('*, employees(id, name)').order('date', { ascending: false })
+  if (employeeId) q = q.eq('employee_id', employeeId)
+  const { data, error } = await q
   if (error) throw error
   return data || []
 }
@@ -233,4 +235,41 @@ export async function getDashboardStats() {
     monthlySalary, totalAdvances, todayOrders, todayValue,
     totalBudget, totalExpenses, budgetBalance,
   }
+}
+
+/* ─── EMPLOYEE LOGIN ─────────────────────────────────── */
+// Returns all active employees with their PIN hash (for login screen)
+export async function getEmployeesForLogin() {
+  const { data, error } = await supabase
+    .from('employees')
+    .select('id, name, role, employee_pin')
+    .eq('is_active', true)
+    .order('name')
+  if (error) throw error
+  return data || []
+}
+
+// Returns full employee record by id (for session after login)
+export async function getEmployeeById(id) {
+  const { data, error } = await supabase
+    .from('employees')
+    .select('*')
+    .eq('id', id)
+    .single()
+  if (error) throw error
+  return data
+}
+
+/* ─── EMPLOYEE: OWN ATTENDANCE ───────────────────────── */
+export async function getMyAttendance(employeeId, year, month) {
+  const { start, end } = monthRange(year, month)
+  const { data, error } = await supabase
+    .from('attendance')
+    .select('date, status')
+    .eq('employee_id', employeeId)
+    .gte('date', start)
+    .lte('date', end)
+    .order('date')
+  if (error) throw error
+  return data || []
 }

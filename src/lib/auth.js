@@ -134,3 +134,28 @@ export function clearPin() {
   localStorage.removeItem(LS_HASH)
   localStorage.removeItem(LS_LEN)
 }
+
+/* ─── Employee PIN ────────────────────────────────────
+   Each employee gets their own 4-digit PIN set by admin.
+   Stored as SHA-256 hash in the employees.employee_pin column.
+──────────────────────────────────────────────────── */
+
+export async function hashEmployeePin(pin) {
+  return hashPin('emp_' + pin)   // different salt prefix from admin PIN
+}
+
+export async function setEmployeePin(employeeId, pin) {
+  const hash = await hashEmployeePin(pin)
+  const { error } = await supabase
+    .from('employees')
+    .update({ employee_pin: hash })
+    .eq('id', employeeId)
+  if (error) throw new Error(`Failed to set employee PIN: ${error.message}`)
+  return hash
+}
+
+export async function verifyEmployeePin(employee, pin) {
+  if (!employee?.employee_pin) return false
+  const hash = await hashEmployeePin(pin)
+  return hash === employee.employee_pin
+}
