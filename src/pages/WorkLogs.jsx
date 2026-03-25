@@ -1,41 +1,52 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { format } from 'date-fns'
-import {
-  ChevronLeft, ChevronRight, Package, IndianRupee,
-  Plus, Pencil, Trash2, Save, X, Download
-} from 'lucide-react'
-import {
-  getEmployees, getWorkLogForDate, upsertWorkLog, deleteWorkLog
-} from '../lib/db'
-import { todayStr, yesterdayStr, formatCurrency } from '../lib/utils'
+import { ChevronLeft, ChevronRight, Package, Download, Minus, Plus, RotateCcw } from 'lucide-react'
+import { getEmployees, getWorkLogForDate, upsertWorkLog, deleteWorkLog } from '../lib/db'
+import { todayStr } from '../lib/utils'
 import { toast } from '../components/Toast'
 import { isConfigured } from '../lib/supabase'
 import ConfigBanner from '../components/ConfigBanner'
 
-/* ─── Inline row editor ───────────────────────────── */
-function LogRow({ emp, log, date, onSaved, onDeleted }) {
-  const [editing, setEditing] = useState(!log)   // auto-open if no log yet
-  const [orders, setOrders] = useState(log?.orders_delivered ?? '')
-  const [value, setValue] = useState(log?.order_value ?? '')
-  const [notes, setNotes] = useState(log?.notes ?? '')
-  const [saving, setSaving] = useState(false)
+/* ── Single employee counter row ─────────────────────
+   - Shows employee name + role
+   - + / − buttons to increment/decrement
+   - Count displayed in the middle
+   - Auto-saves 600ms after last tap (debounced)
+   - Long-press − to reset to 0
+──────────────────────────────────────────────────── */
+function CounterRow({ emp, initialCount, date, onCountChange }) {
+  const [count,   setCount]   = useState(initialCount ?? 0)
+  const [saving,  setSaving]  = useState(false)
+  const [flash,   setFlash]   = useState(null)   // 'up' | 'down' | null
+  const saveTimer = useRef(null)
+  const longPressTimer = useRef(null)
 
-  async function handleSave() {
-    if (!orders || isNaN(orders) || Number(orders) < 0) {
-      toast('Enter a valid order count', 'error'); return
-    }
+  // When date changes from parent, reset to new initial
+  useEffect(() => {
+    setCount(initialCount ?? 0)
+  }, [initialCount, date])
+
+  // Debounced auto-save
+  function scheduleave(newCount) {
+    clearTimeout(saveTimer.current)
+    saveTimer.current = setTimeout(() => persist(newCount), 600)
+  }
+
+  async function persist(newCount) {
     setSaving(true)
     try {
-      const saved = await upsertWorkLog({
-        employee_id: emp.id,
-        date,
-        orders_delivered: Number(orders),
-        order_value: value ? Number(value) : null,
-        notes: notes || null,
-      })
-      toast('Saved')
-      setEditing(false)
-      onSaved(saved)
+      if (newCount === 0) {
+        await deleteWorkLog(emp.id, date)   // pass empId+date for cleanup
+      } else {
+        await upsertWorkLog({
+          employee_id: emp.id,
+          date,
+          orders_delivered: newCount,
+          order_value: null,
+          notes: null,
+        })
+      }
+      onCountChange(emp.id, newCount)
     } catch (e) {
       toast(e.message, 'error')
     } finally {
@@ -43,182 +54,151 @@ function LogRow({ emp, log, date, onSaved, onDeleted }) {
     }
   }
 
-  async function handleDelete() {
-    if (!log?.id) return
-    if (!confirm('Delete this log entry?')) return
-    try {
-      await deleteWorkLog(log.id)
-      toast('Deleted')
-      onDeleted(emp.id)
-    } catch (e) {
-      toast(e.message, 'error')
-    }
+  function increment() {
+    const next = count + 1
+    setCount(next)
+    setFlash('up')
+    setTimeout(() => setFlash(null), 300)
+    scheduleave(next)
   }
+
+  function decrement() {
+    const next = Math.max(0, count - 1)
+    setCount(next)
+    setFlash('down')
+    setTimeout(() => setFlash(null), 300)
+    scheduleave(next)
+  }
+
+  function reset() {
+    setCount(0)
+    clearTimeout(saveTimer.current)
+    persist(0)
+  }
+
+  // Long-press minus to reset
+  function onMinusDown() {
+    longPressTimer.current = setTimeout(() => { reset() }, 700)
+  }
+  function onMinusUp() {
+    clearTimeout(longPressTimer.current)
+  }
+
+  const hasCount = count > 0
 
   return (
     <div
-      className="rounded-xl overflow-hidden transition-all"
+      className="flex items-center gap-3 px-4 py-3 rounded-xl transition-all"
       style={{
         background: 'var(--surface)',
-        border: `1px solid ${log ? 'rgba(167,139,250,0.2)' : 'var(--border)'}`,
+        border: `1px solid ${hasCount ? 'rgba(167,139,250,0.25)' : 'var(--border)'}`,
       }}
     >
-      {/* Header row */}
-      <div className="flex items-center gap-3 px-4 py-3">
-        <div
-          className="w-9 h-9 rounded-lg flex items-center justify-center shrink-0 text-xs font-bold"
-          style={{
-            background: log ? 'rgba(167,139,250,0.12)' : 'rgba(100,116,139,0.1)',
-            color: log ? '#a78bfa' : '#64748b',
-          }}
-        >
-          {emp.name[0]}
-        </div>
-
-        <div className="flex-1 min-w-0">
-          <p className="text-sm font-semibold truncate" style={{ color: 'var(--text)' }}>
-            {emp.name}
-          </p>
-          <p className="text-xs" style={{ color: 'var(--text-muted)' }}>{emp.role || '—'}</p>
-        </div>
-
-        {/* Summary if not editing */}
-        {!editing && log && (
-          <div className="flex items-center gap-3 mr-1">
-            <div className="text-right">
-              <p className="mono font-bold text-sm" style={{ color: '#a78bfa' }}>
-                {log.orders_delivered} orders
-              </p>
-              {log.order_value > 0 && (
-                <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
-                  {formatCurrency(log.order_value)}
-                </p>
-              )}
-            </div>
-          </div>
-        )}
-
-        {!editing && !log && (
-          <span className="text-xs" style={{ color: 'var(--text-faint)' }}>Not logged</span>
-        )}
-
-        {/* Actions */}
-        <div className="flex gap-1 shrink-0">
-          {!editing && (
-            <button
-              onClick={() => setEditing(true)}
-              className="p-1.5 rounded-lg hover:bg-white/5 transition-colors"
-              style={{ color: 'var(--text-muted)' }}
-              title="Edit"
-            >
-              <Pencil size={14} />
-            </button>
-          )}
-          {!editing && log && (
-            <button
-              onClick={handleDelete}
-              className="p-1.5 rounded-lg hover:bg-white/5 transition-colors"
-              style={{ color: '#f87171' }}
-              title="Delete"
-            >
-              <Trash2 size={14} />
-            </button>
-          )}
-          {editing && (
-            <button
-              onClick={() => { setEditing(false); if (!log) { setOrders(''); setValue(''); setNotes('') } }}
-              className="p-1.5 rounded-lg hover:bg-white/5 transition-colors"
-              style={{ color: 'var(--text-muted)' }}
-            >
-              <X size={14} />
-            </button>
-          )}
-        </div>
+      {/* Avatar */}
+      <div
+        className="w-9 h-9 rounded-lg flex items-center justify-center shrink-0 text-sm font-bold"
+        style={{
+          background: hasCount ? 'rgba(167,139,250,0.12)' : 'var(--surface2)',
+          color: hasCount ? '#a78bfa' : 'var(--text-faint)',
+          transition: 'all 0.2s',
+        }}
+      >
+        {emp.name[0].toUpperCase()}
       </div>
 
-      {/* Edit form */}
-      {editing && (
-        <div
-          className="px-4 pb-4 pt-2 space-y-3 animate-fade-in"
-          style={{ borderTop: '1px solid var(--border)' }}
-        >
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="text-xs font-semibold uppercase tracking-widest mb-1 block"
-                style={{ color: 'var(--text-muted)' }}>
-                Orders Delivered *
-              </label>
-              <input
-                type="number"
-                min="0"
-                placeholder="0"
-                className="input mono"
-                value={orders}
-                onChange={e => setOrders(e.target.value)}
-                autoFocus
-              />
-            </div>
-            <div>
-              <label className="text-xs font-semibold uppercase tracking-widest mb-1 block"
-                style={{ color: 'var(--text-muted)' }}>
-                Order Value (₹)
-              </label>
-              <input
-                type="number"
-                min="0"
-                placeholder="Optional"
-                className="input mono"
-                value={value}
-                onChange={e => setValue(e.target.value)}
-              />
-            </div>
-          </div>
-          <div>
-            <label className="text-xs font-semibold uppercase tracking-widest mb-1 block"
-              style={{ color: 'var(--text-muted)' }}>
-              Notes
-            </label>
-            <input
-              className="input"
-              placeholder="Optional note…"
-              value={notes}
-              onChange={e => setNotes(e.target.value)}
-            />
-          </div>
-          <button
-            className="btn-primary w-full py-2"
-            onClick={handleSave}
-            disabled={saving}
-          >
-            <Save size={14} />
-            {saving ? 'Saving…' : 'Save Log'}
-          </button>
-        </div>
+      {/* Name + role */}
+      <div className="flex-1 min-w-0">
+        <p className="text-sm font-semibold truncate" style={{ color: 'var(--text)' }}>
+          {emp.name}
+        </p>
+        <p className="text-xs truncate" style={{ color: 'var(--text-muted)' }}>
+          {emp.role || '—'}
+        </p>
+      </div>
+
+      {/* Saving indicator */}
+      {saving && (
+        <span className="text-xs" style={{ color: 'var(--text-faint)' }}>saving…</span>
       )}
+
+      {/* Counter controls */}
+      <div className="flex items-center gap-2 shrink-0">
+        {/* − button */}
+        <button
+          onPointerDown={onMinusDown}
+          onPointerUp={onMinusUp}
+          onPointerLeave={onMinusUp}
+          onClick={decrement}
+          disabled={count === 0}
+          className="w-10 h-10 rounded-xl flex items-center justify-center transition-all active:scale-90"
+          style={{
+            background: count === 0 ? 'var(--surface2)' : 'rgba(248,113,113,0.1)',
+            color: count === 0 ? 'var(--text-faint)' : '#f87171',
+            border: `1px solid ${count === 0 ? 'var(--border)' : 'rgba(248,113,113,0.2)'}`,
+          }}
+          title="Hold to reset to 0"
+        >
+          <Minus size={16} />
+        </button>
+
+        {/* Count display */}
+        <div
+          className="w-12 h-10 rounded-xl flex items-center justify-center mono font-bold text-lg transition-all"
+          style={{
+            background: hasCount
+              ? flash === 'up'   ? 'rgba(167,139,250,0.25)'
+              : flash === 'down' ? 'rgba(248,113,113,0.15)'
+              : 'rgba(167,139,250,0.1)'
+              : 'var(--surface2)',
+            color: hasCount ? '#a78bfa' : 'var(--text-faint)',
+            transform: flash ? 'scale(1.15)' : 'scale(1)',
+            border: `1px solid ${hasCount ? 'rgba(167,139,250,0.2)' : 'var(--border)'}`,
+          }}
+        >
+          {count}
+        </div>
+
+        {/* + button */}
+        <button
+          onClick={increment}
+          className="w-10 h-10 rounded-xl flex items-center justify-center transition-all active:scale-90"
+          style={{
+            background: 'rgba(167,139,250,0.1)',
+            color: '#a78bfa',
+            border: '1px solid rgba(167,139,250,0.2)',
+          }}
+        >
+          <Plus size={16} />
+        </button>
+      </div>
     </div>
   )
 }
 
-/* ─── Main Page ──────────────────────────────────── */
+/* ── Main page ───────────────────────────────────── */
 export default function WorkLogs() {
   const today = todayStr()
-  const [date, setDate] = useState(today)
+  const [date,      setDate]      = useState(today)
   const [employees, setEmployees] = useState([])
-  const [logs, setLogs] = useState({})       // { empId: log }
-  const [loading, setLoading] = useState(true)
-  const [search, setSearch] = useState('')
+  const [counts,    setCounts]    = useState({})   // { empId: number }
+  const [loading,   setLoading]   = useState(true)
+  const [search,    setSearch]    = useState('')
 
+  // Load employees once
   useEffect(() => {
-    getEmployees().then(setEmployees).catch(e => toast(e.message, 'error'))
+    getEmployees()
+      .then(setEmployees)
+      .catch(e => toast(e.message, 'error'))
   }, [])
 
+  // Load existing logs whenever date changes
   const loadLogs = useCallback(async () => {
     setLoading(true)
     try {
       const data = await getWorkLogForDate(date)
-      const map = {}
-      data.forEach(l => { map[l.employee_id] = l })
-      setLogs(map)
+      const map  = {}
+      data.forEach(l => { map[l.employee_id] = l.orders_delivered })
+      setCounts(map)
     } catch (e) {
       toast(e.message, 'error')
     } finally {
@@ -229,35 +209,31 @@ export default function WorkLogs() {
   useEffect(() => { loadLogs() }, [loadLogs])
 
   function shiftDate(days) {
-    const d = new Date(date)
+    const d = new Date(date + 'T00:00:00')
     d.setDate(d.getDate() + days)
     setDate(format(d, 'yyyy-MM-dd'))
   }
 
-  function handleSaved(emp, savedLog) {
-    setLogs(prev => ({ ...prev, [emp.id]: savedLog }))
-  }
-
-  function handleDeleted(empId) {
-    setLogs(prev => { const n = { ...prev }; delete n[empId]; return n })
+  function handleCountChange(empId, newCount) {
+    setCounts(prev => ({ ...prev, [empId]: newCount }))
   }
 
   function exportCSV() {
-    const rows = [['Employee', 'Role', 'Date', 'Orders Delivered', 'Order Value (₹)', 'Notes']]
+    const rows = [['Employee', 'Role', 'Date', 'Orders']]
     employees.forEach(emp => {
-      const l = logs[emp.id]
-      if (l) rows.push([emp.name, emp.role || '', l.date, l.orders_delivered, l.order_value || '', l.notes || ''])
+      const c = counts[emp.id] || 0
+      if (c > 0) rows.push([emp.name, emp.role || '', date, c])
     })
-    const csv = rows.map(r => r.join(',')).join('\n')
-    const blob = new Blob([csv], { type: 'text/csv' })
-    const a = document.createElement('a'); a.href = URL.createObjectURL(blob)
-    a.download = `work_logs_${date}.csv`; a.click()
+    const csv  = rows.map(r => r.join(',')).join('\n')
+    const a    = document.createElement('a')
+    a.href     = URL.createObjectURL(new Blob([csv], { type: 'text/csv' }))
+    a.download = `work_logs_${date}.csv`
+    a.click()
     toast('Exported CSV')
   }
 
-  const loggedCount = Object.keys(logs).length
-  const totalOrders = Object.values(logs).reduce((s, l) => s + (l.orders_delivered || 0), 0)
-  const totalValue  = Object.values(logs).reduce((s, l) => s + (l.order_value || 0), 0)
+  const totalOrders  = Object.values(counts).reduce((s, c) => s + (c || 0), 0)
+  const loggedCount  = Object.values(counts).filter(c => c > 0).length
 
   const filtered = employees.filter(e =>
     !search ||
@@ -265,24 +241,26 @@ export default function WorkLogs() {
     (e.role || '').toLowerCase().includes(search.toLowerCase())
   )
 
+  const isToday = date === today
+
   return (
-    <div className="max-w-2xl mx-auto">
+    <div className="max-w-xl mx-auto">
       {!isConfigured && <ConfigBanner />}
 
       {/* Header */}
       <div className="page-header flex items-start justify-between gap-3">
         <div>
           <h1 className="page-title">Work Logs</h1>
-          <p className="page-sub">Track daily orders per employee</p>
+          <p className="page-sub">Tap + / − to update orders</p>
         </div>
         <button className="btn-secondary text-xs px-3 py-2" onClick={exportCSV}>
           <Download size={13} /> CSV
         </button>
       </div>
 
-      {/* Date picker */}
+      {/* Date navigator */}
       <div className="flex items-center gap-2 mb-4">
-        <button className="btn-secondary p-2" onClick={() => shiftDate(-1)}>
+        <button className="btn-secondary p-2.5" onClick={() => shiftDate(-1)}>
           <ChevronLeft size={16} />
         </button>
         <div className="flex-1">
@@ -294,44 +272,47 @@ export default function WorkLogs() {
             className="input text-center font-semibold"
           />
         </div>
-        <button className="btn-secondary p-2" onClick={() => shiftDate(1)} disabled={date >= today}>
+        <button
+          className="btn-secondary p-2.5"
+          onClick={() => shiftDate(1)}
+          disabled={date >= today}
+        >
           <ChevronRight size={16} />
         </button>
       </div>
 
-      {/* Summary bar */}
-      <div className="flex items-center gap-3 mb-4 px-4 py-3 rounded-xl"
-        style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
-        <div className="flex items-center gap-2 flex-1">
+      {/* Summary pill */}
+      <div
+        className="flex items-center justify-between px-4 py-3 rounded-xl mb-4"
+        style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}
+      >
+        <div className="flex items-center gap-2">
           <Package size={15} style={{ color: '#a78bfa' }} />
-          <span className="mono font-bold text-base" style={{ color: '#a78bfa' }}>
+          <span className="mono font-bold text-lg" style={{ color: '#a78bfa' }}>
             {totalOrders}
           </span>
-          <span className="text-xs" style={{ color: 'var(--text-muted)' }}>orders</span>
+          <span className="text-sm" style={{ color: 'var(--text-muted)' }}>
+            orders {isToday ? 'today' : 'on this day'}
+          </span>
         </div>
-        {totalValue > 0 && (
-          <div className="flex items-center gap-2">
-            <span className="mono font-bold text-sm" style={{ color: '#34d399' }}>
-              {formatCurrency(totalValue)}
-            </span>
-          </div>
-        )}
         <span className="text-xs" style={{ color: 'var(--text-faint)' }}>
-          {loggedCount}/{employees.length} logged
+          {loggedCount} / {employees.length} logged
         </span>
       </div>
 
-      {/* Search */}
-      <div className="mb-3">
-        <input
-          className="input"
-          placeholder="Filter employees…"
-          value={search}
-          onChange={e => setSearch(e.target.value)}
-        />
-      </div>
+      {/* Optional search for large teams */}
+      {employees.length > 6 && (
+        <div className="mb-3">
+          <input
+            className="input"
+            placeholder="Search employee…"
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+          />
+        </div>
+      )}
 
-      {/* Employee log rows */}
+      {/* Counter rows */}
       {loading ? (
         <div className="space-y-2">
           {[...Array(5)].map((_, i) => (
@@ -341,21 +322,28 @@ export default function WorkLogs() {
         </div>
       ) : filtered.length === 0 ? (
         <div className="text-center py-12">
-          <p style={{ color: 'var(--text-muted)' }}>No active employees found</p>
+          <Package size={28} className="mx-auto mb-3" style={{ color: 'var(--text-faint)' }} />
+          <p className="font-semibold" style={{ color: 'var(--text)' }}>No employees found</p>
         </div>
       ) : (
         <div className="space-y-2">
           {filtered.map(emp => (
-            <LogRow
+            <CounterRow
               key={emp.id}
               emp={emp}
-              log={logs[emp.id] || null}
+              initialCount={counts[emp.id] ?? 0}
               date={date}
-              onSaved={(saved) => handleSaved(emp, saved)}
-              onDeleted={handleDeleted}
+              onCountChange={handleCountChange}
             />
           ))}
         </div>
+      )}
+
+      {/* Long-press hint */}
+      {employees.length > 0 && !loading && (
+        <p className="text-center text-xs mt-5" style={{ color: 'var(--text-faint)' }}>
+          Hold − to reset an employee's count to 0
+        </p>
       )}
     </div>
   )

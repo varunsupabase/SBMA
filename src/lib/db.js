@@ -125,8 +125,8 @@ export async function upsertWorkLog(log) {
   if (error) throw error
   return data?.[0] || null
 }
-export async function deleteWorkLog(id) {
-  const { error } = await supabase.from('work_logs').delete().eq('id', id)
+export async function deleteWorkLog(employeeId, date) {
+  const { error } = await supabase.from('work_logs').delete().eq('employee_id', employeeId).eq('date', date)
   if (error) throw error
 }
 export async function getMonthlyWorkStats(year, month) {
