@@ -39,7 +39,7 @@ export default function PinSetup({ onComplete }) {
           </div>
           <h1 className="text-xl font-bold" style={{ color: 'var(--text)' }}>Set Admin PIN</h1>
           <p className="text-sm mt-1.5" style={{ color: 'var(--text-muted)' }}>
-            Create a PIN to protect this app
+            Create a PIN to protect Shree Bhavani
           </p>
         </div>
 

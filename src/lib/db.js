@@ -273,3 +273,55 @@ export async function getMyAttendance(employeeId, year, month) {
   if (error) throw error
   return data || []
 }
+
+/* ─── MY ADVANCES (employee view) ───────────────────── */
+export async function getMyAdvances(employeeId, startDate, endDate) {
+  let q = supabase.from('advances')
+    .select('id, amount, date, note, is_repaid')
+    .eq('employee_id', employeeId)
+    .order('date', { ascending: false })
+  if (startDate) q = q.gte('date', startDate)
+  if (endDate)   q = q.lte('date', endDate)
+  const { data, error } = await q
+  if (error) throw error
+  return data || []
+}
+
+/* ─── NOTES ──────────────────────────────────────────
+   created_by_employee_id = null  →  written by Admin
+   created_by_employee_id = uuid  →  written by that employee
+─────────────────────────────────────────────────────── */
+export async function getNotes() {
+  const { data, error } = await supabase
+    .from('notes')
+    .select('*, employees(id, name, role)')
+    .order('created_at', { ascending: false })
+  if (error) throw error
+  return data || []
+}
+
+export async function addNote(note) {
+  const { data, error } = await supabase
+    .from('notes')
+    .insert(note)
+    .select('*, employees(id, name, role)')
+    .single()
+  if (error) throw error
+  return data
+}
+
+export async function updateNote(id, content) {
+  const { data, error } = await supabase
+    .from('notes')
+    .update({ content, updated_at: new Date().toISOString() })
+    .eq('id', id)
+    .select('*, employees(id, name, role)')
+    .single()
+  if (error) throw error
+  return data
+}
+
+export async function deleteNote(id) {
+  const { error } = await supabase.from('notes').delete().eq('id', id)
+  if (error) throw error
+}

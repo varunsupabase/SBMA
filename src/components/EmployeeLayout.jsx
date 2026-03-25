@@ -1,11 +1,13 @@
 import { useState } from 'react'
 import { NavLink } from 'react-router-dom'
-import { Menu, X, CalendarCheck, TrendingDown, LogOut, Moon, Sun, User, Building2 } from 'lucide-react'
+import { Menu, X, CalendarCheck, TrendingDown, LogOut, Moon, Sun, User, Wallet, StickyNote } from 'lucide-react'
 import { useSession } from '../lib/session'
 
 const EMP_NAV = [
   { to: '/my-attendance', icon: CalendarCheck, label: 'My Attendance' },
+  { to: '/my-advances',   icon: Wallet,        label: 'My Advances'  },
   { to: '/my-expenses',   icon: TrendingDown,  label: 'My Expenses'  },
+  { to: '/notes',         icon: StickyNote,    label: 'Notes'        },
 ]
 
 function EmployeeSidebar({ open, onClose, darkMode, onToggleDark, onLogout }) {

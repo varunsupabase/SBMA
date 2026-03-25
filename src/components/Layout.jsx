@@ -21,7 +21,7 @@ export default function Layout({ children, darkMode, onToggleDark, onLogout }) {
             style={{ background: 'var(--surface2)', color: 'var(--text)' }}>
             <Menu size={18} />
           </button>
-          <span className="font-bold text-sm" style={{ color: 'var(--text)' }}>EMP Manager</span>
+          <span className="font-bold text-sm" style={{ color: 'var(--text)' }}>Shree Bhavani</span>
         </header>
         <main className="flex-1 overflow-y-auto p-4 lg:p-6 animate-fade-in">
           {children}

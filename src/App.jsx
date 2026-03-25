@@ -23,7 +23,9 @@ import Budget      from './pages/Budget'
 
 // Employee pages
 import MyAttendance from './pages/MyAttendance'
+import MyAdvances   from './pages/MyAdvances'
 import MyExpenses   from './pages/MyExpenses'
+import Notes        from './pages/Notes'
 
 import { ToastContainer } from './components/Toast'
 
@@ -142,6 +144,7 @@ export default function App() {
             <Route path="/performance" element={<Performance />} />
             <Route path="/contacts"    element={<Contacts />} />
             <Route path="/budget"      element={<Budget />} />
+            <Route path="/notes"       element={<Notes />} />
             <Route path="*"            element={<Navigate to="/" replace />} />
           </Routes>
         </Layout>
@@ -158,7 +161,9 @@ export default function App() {
           <Routes>
             <Route path="/"               element={<Navigate to="/my-attendance" replace />} />
             <Route path="/my-attendance"  element={<MyAttendance />} />
+            <Route path="/my-advances"    element={<MyAdvances />} />
             <Route path="/my-expenses"    element={<MyExpenses />} />
+            <Route path="/notes"          element={<Notes />} />
             <Route path="*"              element={<Navigate to="/my-attendance" replace />} />
           </Routes>
         </EmployeeLayout>

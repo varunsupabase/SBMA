@@ -16,7 +16,7 @@ export default function RoleSelect({ onChoose }) {
             <Building2 size={28} className="text-black" />
           </div>
           <h1 className="text-2xl font-bold" style={{ color: 'var(--text)' }}>
-            EMP Manager
+            Shree Bhavani
           </h1>
           <p className="text-sm mt-1" style={{ color: 'var(--text-muted)' }}>
             Who are you?
@@ -70,7 +70,7 @@ export default function RoleSelect({ onChoose }) {
                 Employee
               </p>
               <p className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>
-                Log expenses · View my attendance
+                Attendance · Advances · Expenses · Notes
               </p>
             </div>
             <span className="ml-auto text-lg" style={{ color: 'var(--text-faint)' }}>→</span>

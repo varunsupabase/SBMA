@@ -2,7 +2,7 @@ import { NavLink } from 'react-router-dom'
 import {
   LayoutDashboard, Users, CalendarCheck, Wallet,
   Banknote, X, Moon, Sun, Building2, ClipboardList,
-  BarChart3, BookUser, PiggyBank, LogOut
+  BarChart3, BookUser, PiggyBank, LogOut, StickyNote
 } from 'lucide-react'
 
 const GROUPS = [
@@ -33,6 +33,7 @@ const GROUPS = [
     items: [
       { to: '/contacts',    icon: BookUser,         label: 'Contacts' },
       { to: '/budget',      icon: PiggyBank,        label: 'Shop Budget' },
+      { to: '/notes',       icon: StickyNote,       label: 'Notes' },
     ]
   },
 ]
@@ -58,7 +59,7 @@ export default function Sidebar({ open, onClose, darkMode, onToggleDark, onLogou
               <Building2 size={16} className="text-black" />
             </div>
             <div>
-              <p className="text-sm font-bold leading-none" style={{ color:'var(--text)' }}>EMP Manager</p>
+              <p className="text-sm font-bold leading-none" style={{ color:'var(--text)' }}>Shree Bhavani</p>
               <p className="text-xs mt-0.5" style={{ color:'var(--text-muted)' }}>Admin Panel</p>
             </div>
           </div>
